@@ -8,6 +8,11 @@ import (
 )
 
 func main() {
+
+	parsedArgs := parseArgs("GOCORS", []argument{
+		{ Name: "port", Option: "p", Description: "Port to listen on", Default: 8080 },
+	})
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		// Set CORS headers
 		w.Header().Set("Access-Control-Allow-Origin", "*")                   // Allow localhost
@@ -53,8 +58,8 @@ func main() {
 	})
 
 	// Start the server on port 8080
-	fmt.Println("Server is running on port 8080...")
-	err := http.ListenAndServe(":8080", nil)
+	fmt.Printf("Server is starting on port %v...", parsedArgs["port"])
+	err := http.ListenAndServe(fmt.Sprintf(":%v",parsedArgs["port"]), nil)
 	if err != nil {
 		log.Fatalf("Error starting server: %v", err)
 	}
