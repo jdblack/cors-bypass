@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 )
 
 func main() {
@@ -15,15 +16,7 @@ func main() {
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		// Set CORS headers
-		w.Header().Set("Access-Control-Allow-Origin", "*")                   // Allow localhost
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS") // Allow specific methods
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")       // Allow specific headers
 
-		// Handle preflight OPTIONS request
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
 
 		// Get the URL from the query parameter
 		fullURL := r.URL.Query().Get("url") 
@@ -51,7 +44,28 @@ func main() {
 			return
 		}
 
+
+		for k,v := range resp.Header {
+			w.Header().Set(k, strings.Join(v," "))
+			fmt.Printf("Setting %s %s\n", k, v)
+		}
+		w.Header().Set("Access-Control-Allow-Origin", "*")                   // Allow localhost
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS") // Allow specific methods
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")       // Allow specific headers
+
+		// Handle preflight OPTIONS request
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+
+
+
+
+
 		// Write the response from the target URL back to the original response
+		log.Printf("Returning status: %v  %v", resp.StatusCode, resp.Status)
 		w.WriteHeader(resp.StatusCode)
 		w.Write(body)
 
