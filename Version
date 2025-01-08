@@ -1,0 +1,4 @@
+VERSION=0.1.1
+APP_NAME=coreless
+REGISTRIES=registry:5000
+
