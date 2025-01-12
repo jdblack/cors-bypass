@@ -16,6 +16,9 @@ help: ## This help.
 run: build
 	docker run -i -t -p 8080:8080 --rm -$(APP_NAME)
 
+clean:
+	rm $(APP_NAME)
+
 build:
 	docker build . -t $(APP_NAME)
 

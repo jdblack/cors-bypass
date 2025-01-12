@@ -72,6 +72,7 @@ func main() {
 	})
 
 	// Start the server on port 8080
+	log.Println("LOG: Server is starting on port %v...", parsedArgs["port"])
 	fmt.Printf("Server is starting on port %v...", parsedArgs["port"])
 	err := http.ListenAndServe(fmt.Sprintf(":%v",parsedArgs["port"]), nil)
 	if err != nil {

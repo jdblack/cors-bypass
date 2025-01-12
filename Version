@@ -1,4 +1,4 @@
 VERSION=0.1.1
-APP_NAME=coreless
+APP_NAME=corsless
 REGISTRIES=registry:5000
 
