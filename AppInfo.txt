@@ -1,0 +1,4 @@
+APP_NAME=corsless
+MAJOR=0
+MINOR=0
+REGISTRIES=harbor.vn.linuxguru.net/linuxguru

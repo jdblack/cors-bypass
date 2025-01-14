@@ -4,10 +4,13 @@
 
 SHELL := bash
 
-include Version
+include AppInfo.txt
+PATCH := $(shell git rev-list --count HEAD)
+VERSION := "${MAJOR}.${MINOR}.${PATCH}"
 
 .PHONY: help tag-latest
 help: ## This help.
+	@echo "Version: ${VERSION}"
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 .DEFAULT_GOAL := help
