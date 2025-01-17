@@ -1,0 +1,76 @@
+#!/bin/bash
+
+main() {
+    source AppInfo.txt
+
+    VERSION=$(calculate_version "$MAJOR" "$MINOR")  # Pass MAJOR and MINOR to calculate_version
+    update_chart_version "$VERSION"
+    build_docker_images "$APP_NAME" "$VERSION"
+    push_docker_images "$APP_NAME" "$VERSION" "$REGISTRIES"  # Pass VERSION here
+    package_helm_chart
+    push_helm_chart "$APP_NAME" "$VERSION" "$REGISTRIES"
+    echo "Docker images and Helm chart pushed successfully."
+    echo "Make sure to commit to git!!"
+}
+
+calculate_version() {
+    local major="$1"
+    local minor="$2"
+    local patch=$(git rev-list --count HEAD)  # Declare patch as local
+    echo "${major}.${minor}.${patch}"
+}
+
+# Function to update Chart.yaml with the new version
+update_chart_version() {
+    local version="$1"
+    if [[ -f chart/Chart.yaml ]]; then
+        sed -i.bak "s/version: .*/version: ${version}/" chart/Chart.yaml
+        sed -i.bak "s/appVersion: .*/appVersion: ${version}/" chart/Chart.yaml
+    else
+        echo "Error: chart/Chart.yaml not found!" >&2
+        exit 1
+    fi
+}
+
+# Function to build and tag Docker images
+build_docker_images() {
+    local app_name="$1"
+    local version="$2"
+    docker build -t "${app_name}:latest" .
+    docker tag "${app_name}:latest" "${app_name}:${version}"
+}
+
+# Function to push Docker images to registries
+push_docker_images() {
+    local app_name="$1"
+    local version="$2"  # Capture version here
+    local registries="$3"
+    for REGISTRY in ${registries//,/ }; do
+        docker push "${REGISTRY}/${app_name}:latest"
+        docker push "${REGISTRY}/${app_name}:${version}"
+    done
+}
+
+# Function to package the Helm chart
+package_helm_chart() {
+    helm package chart
+}
+
+# Function to push Helm chart to registry
+push_helm_chart() {
+    local app_name="$1"
+    local version="$2"
+    local registries="$3"
+    for REGISTRY in ${registries//,/ }; do
+        CHART_PACKAGE="${app_name}-${version}.tgz"
+        if [[ -f "$CHART_PACKAGE" ]]; then
+            helm push "$CHART_PACKAGE" "$REGISTRY"
+            echo "Pushed Helm chart to ${REGISTRY}"
+        else
+            echo "Error: Chart package ${CHART_PACKAGE} not found!" >&2
+        fi
+    done
+}
+
+main
+
