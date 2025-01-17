@@ -3,7 +3,7 @@ FROM golang:1.23.4 AS builder
 # Set the Current Working Directory inside the container
 WORKDIR /app
 
-COPY . .
+COPY src/* .
 RUN go build . 
 
 # Start a new stage from scratch

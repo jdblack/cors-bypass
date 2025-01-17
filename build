@@ -1,75 +1,84 @@
-#!/bin/bash
+#!/bin/bash -e
 
 main() {
-    source AppInfo.txt
+  source AppInfo.txt
 
-    VERSION=$(calculate_version "$MAJOR" "$MINOR")  # Pass MAJOR and MINOR to calculate_version
-    update_chart_version "$VERSION"
-    build_docker_images "$APP_NAME" "$VERSION"
-    push_docker_images "$APP_NAME" "$VERSION" "$REGISTRIES"  # Pass VERSION here
-    package_helm_chart
-    push_helm_chart "$APP_NAME" "$VERSION" "$REGISTRIES"
-    echo "Docker images and Helm chart pushed successfully."
-    echo "Make sure to commit to git!!"
+  VERSION=$(calculate_version "$MAJOR" "$MINOR")
+  update_chart_version "$VERSION"
+  build_docker_images "$APP_NAME" "$VERSION" "$REGISTRIES"
+  push_docker_images "$APP_NAME" "$VERSION" "$REGISTRIES" 
+  package_helm_chart
+  push_helm_chart "$APP_NAME" "$VERSION" "$REGISTRIES"
+  echo "Docker images and Helm chart pushed successfully."
+  echo
+  echo
+  echo "Remember commit to git!!"
 }
 
 calculate_version() {
-    local major="$1"
-    local minor="$2"
-    local patch=$(git rev-list --count HEAD)  # Declare patch as local
-    echo "${major}.${minor}.${patch}"
+  local major="$1"
+  local minor="$2"
+  local rev=$(git rev-list --count HEAD)  # Declare patch as local
+  local patch=$[rev+1]
+
+  echo "${major}.${minor}.${patch}"
 }
 
 # Function to update Chart.yaml with the new version
 update_chart_version() {
-    local version="$1"
-    if [[ -f chart/Chart.yaml ]]; then
-        sed -i.bak "s/version: .*/version: ${version}/" chart/Chart.yaml
-        sed -i.bak "s/appVersion: .*/appVersion: ${version}/" chart/Chart.yaml
-    else
-        echo "Error: chart/Chart.yaml not found!" >&2
-        exit 1
-    fi
+  local version="$1"
+  if [[ -f chart/Chart.yaml ]]; then
+    sed -i.bak "s/version: .*/version: ${version}/" chart/Chart.yaml
+    sed -i.bak "s/appVersion: .*/appVersion: v${version}/" chart/Chart.yaml
+  else
+    echo "Error: chart/Chart.yaml not found!" >&2
+    exit 1
+  fi
 }
 
-# Function to build and tag Docker images
 build_docker_images() {
-    local app_name="$1"
-    local version="$2"
-    docker build -t "${app_name}:latest" .
-    docker tag "${app_name}:latest" "${app_name}:${version}"
+  local app_name="$1"
+  local version="$2"
+  local registries="$3"
+  docker build -t "${app_name}:latest" -t "${app_name}:v${version}" .
+  for REGISTRY in ${registries//,/ }; do
+    echo "Tagging for ${REGISTRY}"
+    docker tag "${app_name}:latest" "${REGISTRY}/${app_name}:latest"
+    docker tag "${app_name}:v${version}" "${REGISTRY}/${app_name}:v${version}"
+  done
 }
 
 # Function to push Docker images to registries
 push_docker_images() {
-    local app_name="$1"
-    local version="$2"  # Capture version here
-    local registries="$3"
-    for REGISTRY in ${registries//,/ }; do
-        docker push "${REGISTRY}/${app_name}:latest"
-        docker push "${REGISTRY}/${app_name}:${version}"
-    done
+  local app_name="$1"
+  local version="$2"
+  local registries="$3"
+  for REGISTRY in ${registries//,/ }; do
+    docker push ${REGISTRY}/${app_name}:latest
+    docker push ${REGISTRY}/${app_name}:v${version}
+  done
+
 }
 
-# Function to package the Helm chart
+# Function tdocker push "${REGISTRY}/${app_name}:latest"o package the Helm chart
 package_helm_chart() {
-    helm package chart
+  helm package chart
 }
 
 # Function to push Helm chart to registry
 push_helm_chart() {
-    local app_name="$1"
-    local version="$2"
-    local registries="$3"
-    for REGISTRY in ${registries//,/ }; do
-        CHART_PACKAGE="${app_name}-${version}.tgz"
-        if [[ -f "$CHART_PACKAGE" ]]; then
-            helm push "$CHART_PACKAGE" "$REGISTRY"
-            echo "Pushed Helm chart to ${REGISTRY}"
-        else
-            echo "Error: Chart package ${CHART_PACKAGE} not found!" >&2
-        fi
-    done
+  local app_name="$1"
+  local version="$2"
+  local registries="$3"
+  for REGISTRY in ${registries//,/ }; do
+    CHART_PACKAGE="${app_name}-${version}.tgz"
+    if [[ -f "$CHART_PACKAGE" ]]; then
+      helm push $CHART_PACKAGE oci://$REGISTRY
+      echo "Pushed Helm chart to ${REGISTRY}"
+    else
+      echo "Error: Chart package ${CHART_PACKAGE} not found!" >&2
+    fi
+  done
 }
 
 main
