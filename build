@@ -71,7 +71,7 @@ push_helm_chart() {
   local version="$2"
   local registries="$3"
   for REGISTRY in ${registries//,/ }; do
-    CHART_PACKAGE="${app_name}-${version}.tgz"
+    CHART_PACKAGE="${app_name}-helm-${version}.tgz"
     if [[ -f "$CHART_PACKAGE" ]]; then
       helm push $CHART_PACKAGE oci://$REGISTRY
       echo "Pushed Helm chart to ${REGISTRY}"
