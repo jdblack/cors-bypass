@@ -70,8 +70,8 @@ func main() {
 		{ Name: "port", Option: "p", Description: "Port to listen on", Default: 8080 },
 	})
 
-	http.HandleFunc("/health", health)
 	http.HandleFunc("/", request)
+	http.HandleFunc("/health", health)
 
 	// Start the server on port 8080
 	log.Printf("LOG: Server starting up on port %v...", parsedArgs["port"])
