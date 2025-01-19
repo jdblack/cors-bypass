@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "corsless.fullname" . }}
+  name: {{ include "corsless.name" . }}
   labels:
     {{- include "corsless.labels" . | nindent 4 }}
 spec:
