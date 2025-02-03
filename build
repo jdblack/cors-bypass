@@ -3,23 +3,54 @@
 main() {
   source AppInfo.txt
 
-  VERSION=$(calculate_version "$MAJOR" "$MINOR")
-  update_chart_version "$VERSION"
-  build_docker_images "$APP_NAME" "$VERSION" "$REGISTRIES"
-  push_docker_images "$APP_NAME" "$VERSION" "$REGISTRIES" 
-  package_helm_chart
-  push_helm_chart "$APP_NAME" "$VERSION" "$REGISTRIES"
-  echo "Docker images and Helm chart pushed successfully."
-  echo
-  echo
-  echo "Remember commit to git!!"
+  case $1 in
+    publish)
+      assert_git_clean
+      local version=$(cur_version "$MAJOR" "$MINOR")
+      push_docker_images "$APP_NAME" "$version" "$REGISTRIES" 
+      push_helm_chart "$APP_NAME" "$version" "$REGISTRIES"
+      ;;
+    help)
+      echo "You provided an unrecognized command: $1"
+      echo "Available commands: build, publish"
+      ;;
+    build|*)
+      local version=$(next_version "$MAJOR" "$MINOR")
+      update_chart_version "$version"
+      build_docker_images "$APP_NAME"
+      update_chart_version "$version"
+      package_helm_chart
+      echo "=============================================="
+      echo -e "\033[32mVersion $version built. Now commit to git and run: \033[33m  ./build publish\033[0m"
+      echo "=============================================="
+      git diff --stat
+      ;;
+  esac
 }
 
-calculate_version() {
+
+function assert_git_clean() {
+  if [[ -z $(git status --porcelain) ]]; then
+    return 0
+  fi
+
+  echo "Aborting script because the Git tree is not clean."
+  exit 1
+}
+
+
+next_version() {
   local major="$1"
   local minor="$2"
-  local rev=$(git rev-list --count HEAD)  # Declare patch as local
-  local patch=$[rev+1]
+  local patch=$(git rev-list --count HEAD)  # Declare patch as local
+  patch=$[patch+1]
+  echo "${major}.${minor}.${patch}"
+}
+
+cur_version() {
+  local major="$1"
+  local minor="$2"
+  local patch=$(git rev-list --count HEAD)  # Declare patch as local
 
   echo "${major}.${minor}.${patch}"
 }
@@ -38,14 +69,7 @@ update_chart_version() {
 
 build_docker_images() {
   local app_name="$1"
-  local version="$2"
-  local registries="$3"
-  docker build -t "${app_name}:latest" -t "${app_name}:v${version}" .
-  for REGISTRY in ${registries//,/ }; do
-    echo "Tagging for ${REGISTRY}"
-    docker tag "${app_name}:latest" "${REGISTRY}/${app_name}:latest"
-    docker tag "${app_name}:v${version}" "${REGISTRY}/${app_name}:v${version}"
-  done
+  docker build -t "${app_name}:latest" .
 }
 
 # Function to push Docker images to registries
@@ -54,6 +78,8 @@ push_docker_images() {
   local version="$2"
   local registries="$3"
   for REGISTRY in ${registries//,/ }; do
+    docker tag "${app_name}:latest" "${REGISTRY}/${app_name}:latest"
+    docker tag "${app_name}:latest" "${REGISTRY}/${app_name}:v${version}"
     docker push ${REGISTRY}/${app_name}:latest
     docker push ${REGISTRY}/${app_name}:v${version}
   done
@@ -71,7 +97,7 @@ push_helm_chart() {
   local version="$2"
   local registries="$3"
   for REGISTRY in ${registries//,/ }; do
-    CHART_PACKAGE="${app_name}-helm-${version}.tgz"
+    CHART_PACKAGE="${app_name}-chart-${version}.tgz"
     if [[ -f "$CHART_PACKAGE" ]]; then
       helm push $CHART_PACKAGE oci://$REGISTRY
       echo "Pushed Helm chart to ${REGISTRY}"
@@ -81,5 +107,5 @@ push_helm_chart() {
   done
 }
 
-main
+main $@
 
